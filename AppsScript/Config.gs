@@ -108,7 +108,8 @@ var SENDER_RULES = [
   ['calendar-notification@google.com', null, 'booking'],
   ['noreply@github.com', null, 'security'],
   ['newsletters@e.economist.com', null, 'news'],
-  ['greenpeace.org', null, 'news']
+  ['greenpeace.org', null, 'news'],
+  ['netflix.com', null, 'news']   // 串流服務通知（新片上線等），非醫學期刊
 ];
 
 var LOW_VALUE_CATS = {card:1, promo:1, news:1, shopping:1, bill:1, security:1};

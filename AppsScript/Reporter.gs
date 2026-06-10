@@ -271,7 +271,13 @@ function findFollowups() {
     if (thread_hasLabel(threads[i], FOLLOWUP_DONE_LABEL)) continue;   // 已結案 → 不再提醒
     var msgs = threads[i].getMessages();
     var last = msgs[msgs.length - 1];
-    if (last.getFrom().toLowerCase().indexOf(me) >= 0) {
+    // 收件人裡至少要有一個「不是我自己」的對象，才算「等對方回」；
+    // bot 自己寄給自己的報告/緊急提醒是 me→me，沒有外部收件人 → 略過。
+    var to = last.getTo() || '';
+    var hasOther = to.split(',').some(function (r) {
+      return r.toLowerCase().indexOf(me) < 0 && r.replace(/[\s<>"']/g, '').length > 0;
+    });
+    if (last.getFrom().toLowerCase().indexOf(me) >= 0 && hasOther) {
       out.push({subject: last.getSubject() || '(無主旨)', recipient: last.getTo(),
                 threadId: threads[i].getId(),
                 sentDate: Utilities.formatDate(last.getDate(), 'Asia/Taipei', 'yyyy-MM-dd HH:mm')});

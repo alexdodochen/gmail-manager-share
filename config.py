@@ -124,4 +124,5 @@ SENDER_RULES = [
     # 非醫學電子報
     ("newsletters@e.economist.com", None, "news"),
     ("greenpeace.org", None, "news"),
+    ("netflix.com", None, "news"),  # 串流服務通知（新片上線等），非醫學期刊
 ]

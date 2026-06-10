@@ -179,9 +179,15 @@ class GmailClient:
             last = msgs[-1]
             last_from = next((h["value"] for h in last["payload"]["headers"]
                               if h["name"].lower() == "from"), "")
+            hdrs = {h["name"].lower(): h["value"] for h in last["payload"]["headers"]}
+            me = config.MY_EMAIL.lower()
+            # 收件人裡至少要有一個「不是我自己」的對象，才算「等對方回」；
+            # bot 自己寄給自己的報告/緊急提醒是 me→me，沒有外部收件人 → 略過。
+            to_hdr = hdrs.get("to", "")
+            has_other = any(me not in r.lower() and r.strip(" <>\"'")
+                            for r in to_hdr.split(","))
             # 最後一封還是我寄的 → 對方尚未回覆
-            if config.MY_EMAIL.lower() in last_from.lower():
-                hdrs = {h["name"].lower(): h["value"] for h in last["payload"]["headers"]}
+            if me in last_from.lower() and has_other:
                 results.append({
                     "thread_id": tid,
                     "subject": hdrs.get("subject", "(無主旨)"),
