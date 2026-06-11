@@ -10,11 +10,13 @@ var LOW_VALUE_REPORT = {promo:1, news:1, shopping:1, card:1, bill:1, security:1}
 function mailUrl(threadId) {
   return 'https://mail.google.com/mail/?authuser=' + encodeURIComponent(MY_EMAIL()) + '#all/' + threadId;
 }
-// 手機深連結已驗證走不通（googlegmail:// 被 Gmail 濾掉、https hash 在手機只到收件匣），
-// 故報告只保留桌機可點標題。
+// 標題連結＝桌機跳轉（手機版 Gmail 不吃 hash route、googlegmail:// 在信內被 sanitizer 砍，
+// 兩條路都驗證死過）。手機改走 viewLink：信內放 https Web App 連結（sanitizer 不砍），
+// doGet 直接渲染該信內容＋「在 Gmail App 開啟」按鈕（googlegmail:// 從網頁發起不經 sanitizer）。
 function mailLink(threadId, html) {
   if (!threadId) return html;
-  return '<a href="' + mailUrl(threadId) + '" style="color:#1a73e8;text-decoration:none">' + html + '</a>';
+  return '<a href="' + mailUrl(threadId) + '" style="color:#1a73e8;text-decoration:none">' + html + '</a>' +
+         viewLink(threadId);
 }
 
 // Map astral (4-byte) subject emoji to BMP look-alikes. GmailApp corrupts surrogate pairs,
@@ -232,15 +234,27 @@ function dismissLink(threadId) {
          'text-decoration:none">✅ 已完成</a>';
 }
 
+// 📱 手機看信：報告每個標題旁的小 pill → WEBAPP_URL?v=<threadId> → doGet 渲染信件內容。
+// 與 dismissLink 同享 DISMISS_KEY 與「未設 WEBAPP_URL 自動隱藏」的優雅退場。
+function viewLink(threadId) {
+  var base = prop('WEBAPP_URL', '');
+  if (!base || !threadId) return '';
+  var url = base + '?v=' + encodeURIComponent(threadId) + '&k=' + encodeURIComponent(dismissKey());
+  return ' <a href="' + url + '" style="display:inline-block;padding:1px 8px;margin-left:4px;' +
+         'background:#e8f0fe;color:#1a73e8;border-radius:12px;font-size:12px;font-weight:bold;' +
+         'text-decoration:none">📱</a>';
+}
+
 function thread_hasLabel(thread, name) {
   var ls = thread.getLabels();
   for (var i = 0; i < ls.length; i++) if (ls[i].getName() === name) return true;
   return false;
 }
 
-// Web App 進入點：報告裡的「✅ 已完成」會打到這裡。
+// Web App 進入點：報告裡的「✅ 已完成」（?t=）與「📱 手機看信」（?v=）都打到這裡。
 function doGet(e) {
   var t = (e && e.parameter && e.parameter.t) || '';
+  var v = (e && e.parameter && e.parameter.v) || '';
   var k = (e && e.parameter && e.parameter.k) || '';
   function page(icon, msg) {
     return HtmlService.createHtmlOutput(
@@ -249,6 +263,10 @@ function doGet(e) {
       '<p style="color:#888;font-size:13px">可直接關閉此分頁。</p></div>');
   }
   if (k !== dismissKey()) return page('⚠️', '連結無效或已過期。');
+  if (v) {
+    try { return viewPage(v); }
+    catch (err) { return page('⚠️', '讀取失敗：' + err); }
+  }
   try {
     var thread = GmailApp.getThreadById(t);
     if (!thread) return page('⚠️', '找不到這封信（可能已刪除）。');
@@ -257,6 +275,50 @@ function doGet(e) {
   } catch (err) {
     return page('⚠️', '處理失敗：' + err);
   }
+}
+
+/** 📱 手機看信頁：doGet 以擁有者身分讀取該 thread 最新一封信，直接渲染內容（手機保證能看到信），
+ *  並附「在 Gmail App 開啟」按鈕。googlegmail:// 放在「網頁」上不會被 Gmail 信件 sanitizer 砍
+ *  （死掉的是「信內」的 googlegmail href）；message_id 的格式社群有 hex id 與 RFC822 兩派
+ *  說法，故主按鈕用 hex id、另附 RFC822 備用連結，實機測試後留下會動的那個。 */
+function viewPage(threadId) {
+  var thread = GmailApp.getThreadById(threadId);
+  if (!thread) {
+    return HtmlService.createHtmlOutput(
+      '<div style="font-family:-apple-system,sans-serif;max-width:420px;margin:48px auto;text-align:center;color:#222">' +
+      '<div style="font-size:48px">⚠️</div><p style="font-size:18px">找不到這封信（可能已刪除）。</p></div>')
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+  }
+  var msgs = thread.getMessages();
+  var last = msgs[msgs.length - 1];
+  var subject = last.getSubject() || '(無主旨)';
+  var from = last.getFrom() || '';
+  var date = Utilities.formatDate(last.getDate(), 'Asia/Taipei', 'yyyy-MM-dd HH:mm');
+  var rfc = String(last.getHeader('Message-ID') || '').replace(/[<>]/g, '');
+  function appUrl(mid) {
+    return 'googlegmail:///cv?account_id=' + encodeURIComponent(MY_EMAIL()) +
+           '&message_id=' + encodeURIComponent(mid) + '&view=cv';
+  }
+  // 信件原始 HTML：去掉 <script> 再嵌入（HtmlService 本身已跑在 googleusercontent 沙箱網域）。
+  var body = (last.getBody() || '').replace(/<script[\s\S]*?<\/script>/gi, '');
+  if (!body) body = '<pre style="white-space:pre-wrap">' + esc(last.getPlainBody() || '') + '</pre>';
+  var html =
+    '<div style="font-family:-apple-system,\'Microsoft JhengHei\',sans-serif;max-width:680px;margin:16px auto;padding:0 12px;color:#222">' +
+    '<h2 style="margin:8px 0;font-size:20px">' + esc(subject) + '</h2>' +
+    '<div style="color:#666;font-size:13px;margin-bottom:12px">' + esc(from) + '　' + esc(date) +
+    (msgs.length > 1 ? '　（此串共 ' + msgs.length + ' 封，顯示最新一封）' : '') + '</div>' +
+    '<div style="margin:12px 0">' +
+    '<a href="' + appUrl(last.getId()) + '" style="display:inline-block;padding:10px 18px;margin:2px 6px 2px 0;' +
+    'background:#1a73e8;color:#fff;border-radius:8px;font-weight:bold;text-decoration:none">📨 在 Gmail App 開啟</a>' +
+    '<a href="' + mailUrl(threadId) + '" style="display:inline-block;padding:10px 18px;margin:2px 0;' +
+    'background:#f1f3f4;color:#222;border-radius:8px;text-decoration:none">🖥️ 桌機版開啟</a></div>' +
+    (rfc ? '<div style="font-size:12px;color:#888;margin-bottom:8px">App 按鈕沒反應？' +
+           '<a href="' + appUrl(rfc) + '">改試備用格式</a></div>' : '') +
+    '<hr style="border:none;border-top:1px solid #eee">' +
+    '<div style="font-size:15px;line-height:1.6;overflow-x:auto;word-break:break-word">' + body + '</div></div>';
+  return HtmlService.createHtmlOutput(html)
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .setTitle(safeSubject(subject));
 }
 
 /** Follow-ups: threads I sent where the other party hasn't replied (includes threadId for direct-open links).

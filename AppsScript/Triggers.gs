@@ -28,9 +28,9 @@ function setup() {
   Logger.log('✅ setup 完成：標籤、紀錄表、每日 22:30 統整觸發器都建好了。');
   Logger.log('紀錄表網址：' + SpreadsheetApp.openById(
     PropertiesService.getScriptProperties().getProperty('SHEET_ID')).getUrl());
-  Logger.log('📌 若要啟用跟催「✅ 已完成」一鍵結案：右上「部署→新增部署→類型選「網頁應用程式」'
+  Logger.log('📌 若要啟用「✅ 已完成」一鍵結案與「📱 手機看信」：右上「部署→新增部署→類型選「網頁應用程式」'
     + '→執行身分=我、誰可存取=「任何人」→部署，複製 /exec 網址，貼到「專案設定→指令碼屬性」'
-    + '新增 WEBAPP_URL=該網址。未設定前報告照常，只是不顯示結案按鈕。');
+    + '新增 WEBAPP_URL=該網址。未設定前報告照常，只是不顯示這兩種按鈕。');
 }
 
 function installTriggers() {
