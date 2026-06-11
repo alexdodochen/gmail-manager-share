@@ -808,13 +808,17 @@ function viewPage(threadId) {
     '<h2 style="margin:8px 0;font-size:20px">' + esc(subject) + '</h2>' +
     '<div style="color:#666;font-size:13px;margin-bottom:12px">' + esc(from) + '　' + esc(date) +
     (msgs.length > 1 ? '　（此串共 ' + msgs.length + ' 封，顯示最新一封）' : '') + '</div>' +
+    // target="_blank" 是必要的：HtmlService 頁面跑在 sandboxed iframe 裡，iframe 內直接導向
+    // custom scheme 會被 sandbox 默默擋掉；開新視窗（allow-popups-to-escape-sandbox）才出得去。
     '<div style="margin:12px 0">' +
-    '<a href="' + appUrl(last.getId()) + '" style="display:inline-block;padding:10px 18px;margin:2px 6px 2px 0;' +
+    '<a href="' + appUrl(last.getId()) + '" target="_blank" rel="noopener" style="display:inline-block;padding:10px 18px;margin:2px 6px 2px 0;' +
     'background:#1a73e8;color:#fff;border-radius:8px;font-weight:bold;text-decoration:none">📨 在 Gmail App 開啟</a>' +
-    '<a href="' + mailUrl(threadId) + '" style="display:inline-block;padding:10px 18px;margin:2px 0;' +
+    '<a href="' + mailUrl(threadId) + '" target="_blank" rel="noopener" style="display:inline-block;padding:10px 18px;margin:2px 0;' +
     'background:#f1f3f4;color:#222;border-radius:8px;text-decoration:none">🖥️ 桌機版開啟</a></div>' +
     (rfc ? '<div style="font-size:12px;color:#888;margin-bottom:8px">App 按鈕沒反應？' +
-           '<a href="' + appUrl(rfc) + '">改試備用格式</a></div>' : '') +
+           '<a href="' + appUrl(rfc) + '" target="_blank" rel="noopener">改試備用格式</a></div>' : '') +
+    '<div style="font-size:12px;color:#888;margin-bottom:8px">🧪 仍沒反應？<a href="googlegmail://" target="_blank" rel="noopener">先測「只開 Gmail App」</a>' +
+    '（會動＝格式問題；不動＝瀏覽器擋 scheme → 請點右上「⋯ → 以 Safari 開啟」這頁後再試）。</div>' +
     '<hr style="border:none;border-top:1px solid #eee">' +
     '<div style="font-size:15px;line-height:1.6;overflow-x:auto;word-break:break-word">' + body + '</div></div>';
   return HtmlService.createHtmlOutput(html)
