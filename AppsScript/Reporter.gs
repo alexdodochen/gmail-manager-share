@@ -277,10 +277,10 @@ function doGet(e) {
   }
 }
 
-/** 📱 手機看信頁：doGet 以擁有者身分讀取該 thread 最新一封信，直接渲染內容（手機保證能看到信），
- *  並附「在 Gmail App 開啟」按鈕。googlegmail:// 放在「網頁」上不會被 Gmail 信件 sanitizer 砍
- *  （死掉的是「信內」的 googlegmail href）；message_id 的格式社群有 hex id 與 RFC822 兩派
- *  說法，故主按鈕用 hex id、另附 RFC822 備用連結，實機測試後留下會動的那個。 */
+/** 📱 手機看信頁：doGet 以擁有者身分讀取該 thread 最新一封信，直接渲染內容（手機看信的最終解）。
+ *  「跳轉 app 到指定信件」（googlegmail:///cv）實機判死：hex 與 RFC822 兩種 id、
+ *  Safari 與 Gmail 內建瀏覽器都試過 — app 會醒來但停在原畫面，現代 Gmail iOS 已不處理 /cv，
+ *  勿再嘗試。改附「↩️ 在 Gmail App 回覆」（googlegmail:///co 撰寫路徑，仍受支援）＋桌機連結。 */
 function viewPage(threadId) {
   var thread = GmailApp.getThreadById(threadId);
   if (!thread) {
@@ -294,11 +294,11 @@ function viewPage(threadId) {
   var subject = last.getSubject() || '(無主旨)';
   var from = last.getFrom() || '';
   var date = Utilities.formatDate(last.getDate(), 'Asia/Taipei', 'yyyy-MM-dd HH:mm');
-  var rfc = String(last.getHeader('Message-ID') || '').replace(/[<>]/g, '');
-  function appUrl(mid) {
-    return 'googlegmail:///cv?account_id=' + encodeURIComponent(MY_EMAIL()) +
-           '&message_id=' + encodeURIComponent(mid) + '&view=cv';
-  }
+  var fromEmail = String(last.getReplyTo() || last.getFrom() || '');
+  var em = fromEmail.match(/<([^>]+)>/);
+  fromEmail = em ? em[1] : fromEmail.trim();
+  var replyUrl = 'googlegmail:///co?to=' + encodeURIComponent(fromEmail) +
+                 '&subject=' + encodeURIComponent('Re: ' + subject);
   // 信件原始 HTML：去掉 <script> 再嵌入（HtmlService 本身已跑在 googleusercontent 沙箱網域）。
   var body = (last.getBody() || '').replace(/<script[\s\S]*?<\/script>/gi, '');
   if (!body) body = '<pre style="white-space:pre-wrap">' + esc(last.getPlainBody() || '') + '</pre>';
@@ -310,14 +310,10 @@ function viewPage(threadId) {
     // target="_blank" 是必要的：HtmlService 頁面跑在 sandboxed iframe 裡，iframe 內直接導向
     // custom scheme 會被 sandbox 默默擋掉；開新視窗（allow-popups-to-escape-sandbox）才出得去。
     '<div style="margin:12px 0">' +
-    '<a href="' + appUrl(last.getId()) + '" target="_blank" rel="noopener" style="display:inline-block;padding:10px 18px;margin:2px 6px 2px 0;' +
-    'background:#1a73e8;color:#fff;border-radius:8px;font-weight:bold;text-decoration:none">📨 在 Gmail App 開啟</a>' +
+    '<a href="' + replyUrl + '" target="_blank" rel="noopener" style="display:inline-block;padding:10px 18px;margin:2px 6px 2px 0;' +
+    'background:#1a73e8;color:#fff;border-radius:8px;font-weight:bold;text-decoration:none">↩️ 在 Gmail App 回覆</a>' +
     '<a href="' + mailUrl(threadId) + '" target="_blank" rel="noopener" style="display:inline-block;padding:10px 18px;margin:2px 0;' +
     'background:#f1f3f4;color:#222;border-radius:8px;text-decoration:none">🖥️ 桌機版開啟</a></div>' +
-    (rfc ? '<div style="font-size:12px;color:#888;margin-bottom:8px">App 按鈕沒反應？' +
-           '<a href="' + appUrl(rfc) + '" target="_blank" rel="noopener">改試備用格式</a></div>' : '') +
-    '<div style="font-size:12px;color:#888;margin-bottom:8px">🧪 仍沒反應？<a href="googlegmail://" target="_blank" rel="noopener">先測「只開 Gmail App」</a>' +
-    '（會動＝格式問題；不動＝瀏覽器擋 scheme → 請點右上「⋯ → 以 Safari 開啟」這頁後再試）。</div>' +
     '<hr style="border:none;border-top:1px solid #eee">' +
     '<div style="font-size:15px;line-height:1.6;overflow-x:auto;word-break:break-word">' + body + '</div></div>';
   return HtmlService.createHtmlOutput(html)
