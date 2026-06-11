@@ -58,9 +58,14 @@ def process_inbox(gmail, gemini, max_results=80):
             # 加標籤
             gmail.add_label(mid, cat["label"])
 
-            # 需回覆的真人信 → 備草稿
+            # 備草稿：需回覆的真人信，或重要度 ≥ DRAFT_IMPORTANCE 的重要真人信
+            # （重要但 AI 沒判「需回覆」也先備好，寧可多備不漏備；草稿絕不自動寄）。
+            # 非真人信（電子報/no-reply）一律不備：回了也進黑洞，只會堆草稿垃圾。
             draft_id = None
-            if result.get("is_real_person") and result.get("needs_reply"):
+            if result.get("is_real_person") and (
+                result.get("needs_reply")
+                or int(result.get("importance", 2)) >= config.DRAFT_IMPORTANCE
+            ):
                 try:
                     body = gemini.draft_reply(mail)
                     reply_to = mail["sender_email"]
@@ -68,7 +73,9 @@ def process_inbox(gmail, gemini, max_results=80):
                     if not subj.lower().startswith("re:"):
                         subj = "Re: " + subj
                     draft_id = gmail.create_draft(reply_to, subj, body, thread_id=mail["thread_id"])
-                    gmail.add_label(mid, config.CATEGORY_BY_KEY["reply"]["label"])
+                    # 「需回覆」標籤只貼給真正 needs_reply 的信；重要度觸發的保留原分類標籤。
+                    if result.get("needs_reply"):
+                        gmail.add_label(mid, config.CATEGORY_BY_KEY["reply"]["label"])
                     log.info("已備草稿：%s", mail["subject"][:40])
                 except Exception as e:
                     log.warning("草稿失敗 %s", e)

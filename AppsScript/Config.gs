@@ -30,6 +30,8 @@ function MY_EMAIL()     { return Session.getEffectiveUser().getEmail(); }
 function FOLLOWUP_DAYS(){ return parseInt(prop('FOLLOWUP_DAYS', '4'), 10); }
 function TLDR_MIN_CHARS(){ return parseInt(prop('TLDR_MIN_CHARS', '1500'), 10); }
 function ENABLE_URGENT_ALERT(){ return prop('ENABLE_URGENT_ALERT', 'true') === 'true'; }
+// 重要度達此門檻的真人信，即使未判「需回覆」也自動備草稿（4 = 報告一顆星）。
+function DRAFT_IMPORTANCE(){ return parseInt(prop('DRAFT_IMPORTANCE', '4'), 10); }
 
 var LABEL_PREFIX = '🤖';
 

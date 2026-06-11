@@ -26,6 +26,8 @@ else:
 MY_EMAIL = os.getenv("MY_EMAIL", "")
 FOLLOWUP_DAYS = int(os.getenv("FOLLOWUP_DAYS", "4"))
 TLDR_MIN_CHARS = int(os.getenv("TLDR_MIN_CHARS", "1500"))
+# 重要度達此門檻的真人信，即使未判「需回覆」也自動備草稿（4 = 報告一顆星）。
+DRAFT_IMPORTANCE = int(os.getenv("DRAFT_IMPORTANCE", "4"))
 ENABLE_URGENT_ALERT = os.getenv("ENABLE_URGENT_ALERT", "true").lower() == "true"
 
 # Gmail OAuth scopes：讀信 + 改標籤 + 建草稿 + 寄報告

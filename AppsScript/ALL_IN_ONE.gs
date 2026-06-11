@@ -39,6 +39,8 @@ function MY_EMAIL()     { return Session.getEffectiveUser().getEmail(); }
 function FOLLOWUP_DAYS(){ return parseInt(prop('FOLLOWUP_DAYS', '4'), 10); }
 function TLDR_MIN_CHARS(){ return parseInt(prop('TLDR_MIN_CHARS', '1500'), 10); }
 function ENABLE_URGENT_ALERT(){ return prop('ENABLE_URGENT_ALERT', 'true') === 'true'; }
+// 重要度達此門檻的真人信，即使未判「需回覆」也自動備草稿（4 = 報告一顆星）。
+function DRAFT_IMPORTANCE(){ return parseInt(prop('DRAFT_IMPORTANCE', '4'), 10); }
 
 var LABEL_PREFIX = '🤖';
 
@@ -443,13 +445,16 @@ function processInbox() {
         // 加標籤
         thread.addLabel(ensureLabel(cat.label));
 
-        // 需回覆的真人信 → 備草稿
+        // 備草稿：需回覆的真人信，或重要度 ≥ DRAFT_IMPORTANCE 的重要真人信
+        // （重要但 AI 沒判「需回覆」也先備好，寧可多備不漏備；草稿絕不自動寄）。
+        // 非真人信（電子報/no-reply）一律不備：回了也進黑洞，只會堆草稿垃圾。
         var draftMade = false;
-        if (r.is_real_person && r.needs_reply) {
+        if (r.is_real_person && (r.needs_reply || r.importance >= DRAFT_IMPORTANCE())) {
           try {
             var body = geminiDraftReply(mail);
             gmsg.createDraftReply(body);
-            thread.addLabel(ensureLabel(catByKey('reply').label));
+            // 「需回覆」標籤只貼給真正 needs_reply 的信；重要度觸發的保留原分類標籤。
+            if (r.needs_reply) thread.addLabel(ensureLabel(catByKey('reply').label));
             draftMade = true;
           } catch (e) {}
         }
@@ -629,9 +634,10 @@ function buildReport(mode) {
     h.push('<h3>⭐ 重點信件（依重要性）</h3><ul>');
     highlights.slice(0, 10).forEach(function (m) {
       var c = catByKey(m.category);
+      var dtag = m.draftMade ? '　<span style="color:#0a7">✅ 已備草稿</span>' : '';
       h.push('<li>' + stars(m.importance) + (c ? c.emoji : '') + ' ' +
              mailLink(m.threadId, '<b>' + esc(m.subject).slice(0, 60) + '</b>') +
-             ' <span style="color:#888;font-size:12px">— ' + esc(m.senderEmail) + '</span><br>' +
+             ' <span style="color:#888;font-size:12px">— ' + esc(m.senderEmail) + '</span>' + dtag + '<br>' +
              '<span style="color:#666;font-size:13px">' + esc(m.tldr).slice(0, 90) + '</span></li>');
     });
     h.push('</ul>');
@@ -939,9 +945,10 @@ function buildWeeklyReport() {
     h.push('<h3>⭐ 本週重要事件</h3><ul>');
     important.slice(0, 15).forEach(function (m) {
       var c = catByKey(m.category);
+      var dtag = m.draftMade ? '　<span style="color:#0a7">✅ 已備草稿</span>' : '';
       h.push('<li>' + stars(m.importance) + (c ? c.emoji : '') + ' ' +
              mailLink(m.threadId, '<b>' + esc(m.subject).slice(0, 60) + '</b>') +
-             ' <span style="color:#888;font-size:12px">— ' + esc(m.senderEmail) + '</span><br>' +
+             ' <span style="color:#888;font-size:12px">— ' + esc(m.senderEmail) + '</span>' + dtag + '<br>' +
              '<span style="color:#666;font-size:13px">' + esc(m.tldr).slice(0, 100) + '</span></li>');
     });
     h.push('</ul>');

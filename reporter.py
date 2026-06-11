@@ -102,6 +102,7 @@ def build_report(mode):
         html.append('<h3>⭐ 重點信件（依重要性）</h3><ul>')
         for m in highlights[:10]:
             c = config.CATEGORY_BY_KEY.get(m["category"], {})
+            dtag = '　<span style="color:#0a7">✅ 已備草稿</span>' if m["draft_id"] else ''
             html.append(f'<li>{_stars(m["importance"])}{c.get("emoji","")} '
                         f'{_link(m.get("thread_id"), f"<b>{_esc(m['subject'])[:60]}</b>")} '
                         f'<span style="color:#888;font-size:12px">— {_esc(m["sender_email"])}</span><br>'
@@ -256,6 +257,7 @@ def build_weekly_report(gemini=None):
         html.append('<h3>⭐ 本週重要事件</h3><ul>')
         for m in important[:15]:
             c = config.CATEGORY_BY_KEY.get(m["category"], {})
+            dtag = '　<span style="color:#0a7">✅ 已備草稿</span>' if m["draft_id"] else ''
             html.append(f'<li>{_stars(m["importance"])}{c.get("emoji","")} {_link(m.get("thread_id"), f"<b>{_esc(m['subject'])[:60]}</b>")} '
                         f'<span style="color:#888;font-size:12px">— {_esc(m["sender_email"])}</span><br>'
                         f'<span style="color:#666;font-size:13px">{_esc(m["tldr"])[:100]}</span></li>')

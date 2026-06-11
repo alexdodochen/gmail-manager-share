@@ -61,13 +61,16 @@ function processInbox() {
         // 加標籤
         thread.addLabel(ensureLabel(cat.label));
 
-        // 需回覆的真人信 → 備草稿
+        // 備草稿：需回覆的真人信，或重要度 ≥ DRAFT_IMPORTANCE 的重要真人信
+        // （重要但 AI 沒判「需回覆」也先備好，寧可多備不漏備；草稿絕不自動寄）。
+        // 非真人信（電子報/no-reply）一律不備：回了也進黑洞，只會堆草稿垃圾。
         var draftMade = false;
-        if (r.is_real_person && r.needs_reply) {
+        if (r.is_real_person && (r.needs_reply || r.importance >= DRAFT_IMPORTANCE())) {
           try {
             var body = geminiDraftReply(mail);
             gmsg.createDraftReply(body);
-            thread.addLabel(ensureLabel(catByKey('reply').label));
+            // 「需回覆」標籤只貼給真正 needs_reply 的信；重要度觸發的保留原分類標籤。
+            if (r.needs_reply) thread.addLabel(ensureLabel(catByKey('reply').label));
             draftMade = true;
           } catch (e) {}
         }

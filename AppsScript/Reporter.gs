@@ -128,9 +128,10 @@ function buildReport(mode) {
     h.push('<h3>⭐ 重點信件（依重要性）</h3><ul>');
     highlights.slice(0, 10).forEach(function (m) {
       var c = catByKey(m.category);
+      var dtag = m.draftMade ? '　<span style="color:#0a7">✅ 已備草稿</span>' : '';
       h.push('<li>' + stars(m.importance) + (c ? c.emoji : '') + ' ' +
              mailLink(m.threadId, '<b>' + esc(m.subject).slice(0, 60) + '</b>') +
-             ' <span style="color:#888;font-size:12px">— ' + esc(m.senderEmail) + '</span><br>' +
+             ' <span style="color:#888;font-size:12px">— ' + esc(m.senderEmail) + '</span>' + dtag + '<br>' +
              '<span style="color:#666;font-size:13px">' + esc(m.tldr).slice(0, 90) + '</span></li>');
     });
     h.push('</ul>');
@@ -438,9 +439,10 @@ function buildWeeklyReport() {
     h.push('<h3>⭐ 本週重要事件</h3><ul>');
     important.slice(0, 15).forEach(function (m) {
       var c = catByKey(m.category);
+      var dtag = m.draftMade ? '　<span style="color:#0a7">✅ 已備草稿</span>' : '';
       h.push('<li>' + stars(m.importance) + (c ? c.emoji : '') + ' ' +
              mailLink(m.threadId, '<b>' + esc(m.subject).slice(0, 60) + '</b>') +
-             ' <span style="color:#888;font-size:12px">— ' + esc(m.senderEmail) + '</span><br>' +
+             ' <span style="color:#888;font-size:12px">— ' + esc(m.senderEmail) + '</span>' + dtag + '<br>' +
              '<span style="color:#666;font-size:13px">' + esc(m.tldr).slice(0, 100) + '</span></li>');
     });
     h.push('</ul>');
